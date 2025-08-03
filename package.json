@@ -1,0 +1,10 @@
+{
+  "name": "crown-aviation-site",
+  "version": "1.0.0",
+  "description": "Crown Aviation CEO Simulator Webapp",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
