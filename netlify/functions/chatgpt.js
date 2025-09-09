@@ -1,69 +1,73 @@
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+// netlify/functions/chatgpt.js
+const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
-/**
- * Netlify serverless function zum Aufruf der OpenAI Chat Completion API.
- *
- * Für die Nutzung ist ein OpenAI API‑Key erforderlich, der als Umgebungsvariable
- * OPENAI_API_KEY in den Netlify‑Einstellungen hinterlegt werden muss. Der
- * Frontend‑Code kann diese Funktion mittels POST an /.netlify/functions/chatgpt
- * aufrufen und Messages übergeben. Die Antwort enthält den generierten Text.
- */
-exports.handler = async function (event, context) {
+exports.handler = async function (event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST,OPTIONS',
+      },
+    };
+  }
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
   }
-  const { messages, model = 'gpt-4', temperature = 0.7, max_tokens = 500 } = JSON.parse(event.body || '{}');
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({ error: 'OPENAI_API_KEY not configured' }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'OPENAI_API_KEY missing' }),
     };
   }
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature,
-        max_tokens,
-      }),
-    });
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
+
+  let payload;
+  try { payload = JSON.parse(event.body || '{}'); }
+  catch {
     return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({ content }),
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Invalid JSON' }),
     };
-  } catch (err) {
-    console.error(err);
+  }
+
+  const { messages = [], model = 'gpt-4o-mini', temperature = 0.7 } = payload;
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ model, messages, temperature, stream: true }),
+  });
+
+  if (!resp.ok || !resp.body) {
+    const txt = await resp.text();
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({ error: err.message }),
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: 'Upstream error', detail: txt }),
     };
   }
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    },
+    body: resp.body,
+    isBase64Encoded: false,
+  };
 };
