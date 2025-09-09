@@ -1829,3 +1829,269 @@ function showComposeMailModal() {
   });
   showModal('Neue Mail verfassen', form);
 }
+
+/* Simple tab switcher */
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  const t = document.getElementById(id);
+  if (t) t.classList.add('active');
+}
+
+
+// BEGIN: Dashboard hooks (from 'Airline Manager – Dashboard Mockup')
+function updateKPIs() {
+  const el = (id, v) => document.getElementById(id) && (document.getElementById(id).textContent = v);
+  el('kpi-balance', "$ 12.4M");
+  el('kpi-satisfaction', "82%");
+  el('kpi-ontime', "89%");
+  el('kpi-reputation', "★★★★■");
+}
+function pushEventFeed(type, text) {
+  const li = document.createElement('li');
+  li.textContent = text;
+  li.classList.add(type);
+  const feed = document.getElementById('event-feed-list');
+  if (feed) {
+    // remove placeholder
+    const empty = feed.querySelector('.empty');
+    if (empty) empty.remove();
+    feed.appendChild(li);
+  }
+}
+// Init example
+document.addEventListener('DOMContentLoaded', () => {
+  updateKPIs();
+  pushEventFeed("urgent", "Flug CA1347 verspätet wegen De-Icing (45min)");
+  pushEventFeed("info", "Neue Slots in LHR bestätigt für SS25.");
+});
+// END: Dashboard hooks
+
+
+// BEGIN: OCC data and behavior (from 'Airline Manager – OCC Tab Mockup')
+const flights = [
+  { id:"CA1347", from:"JFK", to:"LHR", std:"10:20", sta:"22:30", etd:"10:50", eta:"23:10",
+    tail:"N123CA", status:"DELAYED", delayMin:30, notes:["De-Icing Queue"], wx:"Light snow" },
+  { id:"CA220",  from:"ZRH", to:"JFK", std:"12:10", sta:"15:35", etd:"12:10", eta:"15:35",
+    tail:"HB-CAA", status:"ON_TIME", delayMin:0, notes:["Crew ready"], wx:"CAVOK" }
+];
+
+let selectedFlight = null;
+function renderFlightRow(f) {
+  return `<tr data-id="${f.id}">
+    <td>${f.id}</td>
+    <td>${f.from} → ${f.to}</td>
+    <td>${f.std} → ${f.etd}</td>
+    <td>${f.sta} → ${f.eta}</td>
+    <td>${f.tail}</td>
+    <td><span class="badge ${f.status}">${f.status}</span></td>
+    <td>${f.delayMin} min</td>
+  </tr>`;
+}
+function renderFlightTable() {
+  const tbody = document.getElementById('occ-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = flights.map(renderFlightRow).join('');
+  tbody.querySelectorAll('tr').forEach(tr => {
+    tr.addEventListener('click', () => selectFlight(tr.getAttribute('data-id')));
+  });
+}
+function selectFlight(id) {
+  selectedFlight = flights.find(x => x.id === id);
+  if (!selectedFlight) return;
+  const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  const tags = [
+    `<span class="tag">Tail ${selectedFlight.tail}</span>`,
+    `<span class="tag">${selectedFlight.status}</span>`
+  ].join('');
+  const timeline = [
+    `<li>STD ${selectedFlight.std}</li>`,
+    `<li>ETD ${selectedFlight.etd}</li>`,
+    `<li>STA ${selectedFlight.sta}</li>`,
+    `<li>ETA ${selectedFlight.eta}</li>`
+  ].join('');
+  const ops = [
+    `<li>Delay: ${selectedFlight.delayMin} min</li>`,
+    `<li>Notes: ${selectedFlight.notes.join(', ')}</li>`
+  ].join('');
+  const res = [`<li>Crew: ready</li>`,`<li>Gate: assigned</li>`,`<li>Fuel: planned</li>`].join('');
+  set('detail-title', `${selectedFlight.id} – ${selectedFlight.from} → ${selectedFlight.to}`);
+  set('detail-tags', tags);
+  set('detail-timeline', timeline);
+  set('detail-operational', ops);
+  const wx = document.getElementById('detail-wx'); if (wx) wx.textContent = selectedFlight.wx || '–';
+}
+function wireDetailActions() {
+  const propose = (action) => proposeAction(action);
+  const g = (id) => document.getElementById(id);
+  g('btn-delay-15')  && (g('btn-delay-15').onclick  = () => propose({ type:'DELAY_FLIGHT', flightId:selectedFlight?.id, minutes:15, reason:'OPS' }));
+  g('btn-delay-30')  && (g('btn-delay-30').onclick  = () => propose({ type:'DELAY_FLIGHT', flightId:selectedFlight?.id, minutes:30, reason:'OPS' }));
+  g('btn-swap-tail') && (g('btn-swap-tail').onclick = () => propose({ type:'SWAP_AIRCRAFT', fromFlightId:selectedFlight?.id }));
+  g('btn-mx-check')  && (g('btn-mx-check').onclick  = () => propose({ type:'SCHEDULE_MAINT', tail:selectedFlight?.tail, slot:'next-available' }));
+  g('btn-pr-note')   && (g('btn-pr-note').onclick   = () => propose({ type:'OPEN_PR_STATEMENT', topic:\`Delay \${selectedFlight?.id}\`, keyPoints:['weather','de-icing','safety first'] }));
+}
+// Approvals
+const approvals = []; // {id, action, reason, impact, status}
+function impactLevel(action) {
+  switch(action.type) {
+    case 'CANCEL_FLIGHT': return 'HIGH';
+    case 'SWAP_AIRCRAFT': return 'MEDIUM';
+    default: return 'LOW';
+  }
+}
+function proposeAction(action) {
+  if (!action) return;
+  const impact = impactLevel(action);
+  if (impact === 'LOW') {
+    executeGameActionSafely(action);
+  } else {
+    const id = 'APP-' + Math.random().toString(36).slice(2,7).toUpperCase();
+    approvals.push({ id, action, impact, status:'PENDING', reason: action.reason || null });
+    renderApprovals();
+  }
+}
+function renderApprovals() {
+  const list = document.getElementById('approvals-list');
+  if (!list) return;
+  list.innerHTML = approvals.map(a => `
+    <li class="\${a.impact === 'HIGH' ? 'urgent' : 'info'}">
+      <strong>\${a.id}</strong> – \${a.action.type} \${a.action.flightId || ''} (\${a.impact})
+      <div class="muted">\${a.reason || ''}</div>
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <button onclick="approve('\${a.id}')">Approve</button>
+        <button onclick="reject('\${a.id}')">Reject</button>
+      </div>
+    </li>
+  `).join('');
+}
+function approve(id) {
+  const a = approvals.find(x => x.id === id); if (!a) return;
+  a.status = 'APPROVED';
+  executeGameActionSafely(a.action);
+  renderApprovals();
+}
+function reject(id) {
+  const a = approvals.find(x => x.id === id); if (!a) return;
+  a.status = 'REJECTED';
+  renderApprovals();
+}
+// Bootstrap
+document.addEventListener('DOMContentLoaded', () => {
+  renderFlightTable();
+  selectFlight('CA1347');
+  wireDetailActions();
+});
+// END: OCC data and behavior
+
+
+function systemPrompt(airlineStateSummary) {
+  return `You are the Airline Brain for "Crown Aviation". You role-play ALL roles except the CEO (the player).
+Roles you embody: OCC/Dispatch, Crew Scheduling, Maintenance Control, Network Planning, Revenue Mgmt, PR/Comms, Safety, ATC liaison, Ground Ops.
+Constraints:
+- Only act within provided game state & airline policy.
+- When you need an action, emit a JSON directive like:
+  <action>{"type":"DELAY_FLIGHT","flightId":"CA1347","minutes":30,"reason":"de-icing queue"}</action>
+- Keep replies concise, structured, and in German UI tone.
+- If info is missing, ask exactly one clarifying question or propose 2–3 realistic options.
+State:
+${airlineStateSummary}`.trim();
+}
+
+
+async function callOpenAIStream(messages, onToken) {
+  const res = await fetch('/.netlify/functions/chatgpt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.6, messages }),
+  });
+  if (!res.ok) { console.error('GPT error', await res.text()); return ''; }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let acc = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+    for (const l of lines) {
+      const payload = l.slice(6).trim();
+      if (payload === '[DONE]') continue;
+      try {
+        const j = JSON.parse(payload);
+        const delta = j.choices?.[0]?.delta?.content ?? '';
+        if (delta) { acc += delta; onToken?.(delta); }
+      } catch {}
+    }
+  }
+  return acc;
+}
+async function sendChat(userText) {
+  const summary = summarizeAirlineStateForPrompt ? summarizeAirlineStateForPrompt() : '(no state summary yet)';
+  const msgs = [{ role: 'system', content: systemPrompt(summary) }, { role: 'user', content: userText }];
+  const log = document.getElementById('chat-log');
+  if (log) {
+    const bubbleUser = document.createElement('div');
+    bubbleUser.className = 'chat-msg user';
+    bubbleUser.textContent = userText;
+    log.appendChild(bubbleUser);
+    const bubbleAI = document.createElement('div');
+    bubbleAI.className = 'chat-msg ai';
+    log.appendChild(bubbleAI);
+    let aiText = '';
+    await callOpenAIStream(msgs, (t) => {
+      aiText += t;
+      bubbleAI.innerHTML = aiText
+        .replace(/</g, '&lt;')
+        .replace(/&lt;action&gt;([\s\S]*?)&lt;\/action&gt;/g, '<code class="action">$1</code>');
+    });
+    const actions = Array.from(aiText.matchAll(/<action>([\s\S]*?)<\/action>/g))
+      .map(m => { try { return JSON.parse(m[1]); } catch { return null; } })
+      .filter(Boolean);
+    actions.forEach(executeGameActionSafely);
+  }
+}
+
+
+const ACTIONS = new Set([
+  'DELAY_FLIGHT','CANCEL_FLIGHT','REASSIGN_CREW','SET_FUEL_POLICY',
+  'OPEN_PR_STATEMENT','SCHEDULE_MAINT','SWAP_AIRCRAFT','ADJUST_PRICE'
+]);
+function executeGameActionSafely(action) {
+  if (!action || !ACTIONS.has(action.type)) return;
+  switch(action.type) {
+    case 'DELAY_FLIGHT':
+      if (!action.flightId || typeof action.minutes !== 'number') return;
+      if (typeof applyDelay === 'function') applyDelay(action.flightId, action.minutes, action.reason || 'GPT');
+      break;
+    case 'CANCEL_FLIGHT':
+      if (typeof cancelFlight === 'function') cancelFlight(action.flightId, action.reason || 'GPT');
+      break;
+    case 'REASSIGN_CREW':
+      if (typeof reassignCrew === 'function') reassignCrew(action.flightId, action.crewIds || []);
+      break;
+    case 'OPEN_PR_STATEMENT':
+      if (typeof openPRDraft === 'function') openPRDraft(action.topic, action.keyPoints || []);
+      break;
+    case 'SCHEDULE_MAINT':
+      if (typeof scheduleMx === 'function') scheduleMx(action.tail, action.slot || 'next-available');
+      break;
+    case 'SWAP_AIRCRAFT':
+      if (typeof swapAircraft === 'function') swapAircraft(action.fromFlightId, action.toFlightId, action.tail);
+      break;
+    case 'ADJUST_PRICE':
+      if (typeof adjustPricing === 'function') adjustPricing(action.market, action.delta || 0);
+      break;
+  }
+}
+function applyBrandColors({ primaryHex }) {
+  document.documentElement.style.setProperty('--primary', primaryHex);
+}
+function renderKPI(container, label, value, trend = 0) {
+  const el = document.createElement('div');
+  el.className = 'kpi-card';
+  el.innerHTML = `
+    <div class="label">${label}</div>
+    <div class="value">${value}</div>
+    <div class="muted">${trend >= 0 ? '▲' : '▼'} ${Math.abs(trend)}%</div>
+  `;
+  container.appendChild(el);
+}

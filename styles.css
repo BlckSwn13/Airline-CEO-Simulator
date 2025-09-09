@@ -1,3 +1,76 @@
+/* === Design Tokens (Modern Dark) === */
+:root {
+  --bg: #0b0f12;
+  --surface: rgba(255,255,255,0.04);
+  --surface-2: rgba(255,255,255,0.06);
+  --text: #e7eef4;
+  --muted: #9fb0bf;
+  --primary: #4da3ff;
+  --accent: #7cf3c0;
+  --danger: #ff6b6b;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --shadow-1: 0 8px 24px rgba(0,0,0,.35);
+  --blur: 10px;
+}
+
+@font-face { font-family: 'InterVar'; src: local('Inter'); font-display: swap; }
+html, body {
+  background: radial-gradient(1200px 700px at 20% -10%, rgba(77,163,255,.08), transparent),
+              radial-gradient(1000px 600px at 120% 10%, rgba(124,243,192,.06), transparent),
+              var(--bg);
+  color: var(--text);
+  font-family: InterVar, Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "SF Pro Text", sans-serif;
+  letter-spacing: .2px;
+}
+
+.card, .sidebar, .top-bar, .tab-content, .chat-terminal, .kpi-card {
+  background: var(--surface);
+  backdrop-filter: blur(var(--blur));
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+}
+
+button {
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  color: var(--text);
+  transition: transform .08s ease, background .2s ease, border-color .2s ease;
+}
+button:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.16); }
+button:active { transform: translateY(0); }
+button.primary, .btn-primary {
+  background: linear-gradient(180deg, rgba(77,163,255,.35), rgba(77,163,255,.15));
+  border-color: rgba(77,163,255,.45);
+}
+
+input, select, textarea {
+  background: var(--surface-2);
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+
+.kpi-cards { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: var(--space-5); }
+.kpi-card  { padding: var(--space-5); }
+.kpi-card .value { font-size: 28px; font-weight: 700; }
+.kpi-card .label { color: var(--muted); }
+.chat-terminal { padding: var(--space-4); }
+.chat-log { display:flex; flex-direction:column; gap:12px; max-height: 420px; overflow:auto; }
+.chat-msg { padding:12px 14px; border-radius: var(--radius-sm); }
+.chat-msg.user { background: rgba(77,163,255,.15); border: 1px solid rgba(77,163,255,.35); }
+.chat-msg.ai   { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.12); }
+.sidebar .active { background: rgba(255,255,255,.06); border-left: 3px solid var(--primary); }
+
 /*
   Globale Stildefinitionen für den Crown Aviation CEO Simulator.
   Das Farbschema nutzt CSS‑Variablen, die zur Laufzeit durch den
@@ -769,3 +842,77 @@ body {
   font-size: 0.8rem;
   color: #555;
 }
+
+/* BEGIN: Dashboard Grid/Cards (from 'Airline Manager – Dashboard Mockup') */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.event-feed {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  border: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  flex-direction: column;
+  height: 420px;
+}
+
+.event-feed h3 { margin-bottom: var(--space-3); }
+
+.feed-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.feed-list li {
+  background: var(--surface-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.feed-list li.urgent { border-left: 3px solid var(--danger); }
+.feed-list li.info   { border-left: 3px solid var(--primary); }
+/* END: Dashboard Grid/Cards */
+
+
+/* BEGIN: OCC Styles (from 'Airline Manager – OCC Tab Mockup') */
+.occ-toolbar {
+  display: flex; gap: var(--space-3); align-items: center;
+  background: var(--surface); border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius-md); padding: var(--space-3); margin-bottom: var(--space-5);
+}
+.occ-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--space-6); }
+.occ-list { overflow: hidden; }
+.occ-table { width: 100%; border-collapse: collapse; }
+.occ-table th, .occ-table td {
+  padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.06);
+  text-align: left; font-size: 0.92rem;
+}
+.occ-table tr:hover { background: rgba(255,255,255,.03); cursor: pointer; }
+.badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid transparent; }
+.badge.ON_TIME { background: rgba(124,243,192,.18); border-color: rgba(124,243,192,.35); }
+.badge.DELAYED  { background: rgba(255,170,0,.15);  border-color: rgba(255,170,0,.35); }
+.badge.CANCELLED{ background: rgba(255,107,107,.15); border-color: rgba(255,107,107,.35); }
+.badge.DIVERTED { background: rgba(77,163,255,.15);  border-color: rgba(77,163,255,.35); }
+.occ-detail .detail-header { display:flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-3); }
+.tags { display:flex; gap:6px; flex-wrap: wrap; }
+.tag { background: var(--surface-2); padding: 4px 8px; border-radius: 999px; font-size: 12px; border: 1px solid rgba(255,255,255,.08); }
+.detail-grid { display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin-bottom: var(--space-4); }
+.mini-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
+.mini-list li { background: var(--surface-2); padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,.06); }
+.wx-card { background: linear-gradient(180deg, rgba(77,163,255,.15), rgba(77,163,255,.05)); border:1px solid rgba(77,163,255,.35); padding: 10px; border-radius: var(--radius-sm); }
+.detail-actions { display:flex; gap: var(--space-3); }
+.detail-actions button { min-width: 120px; }
+.occ-approvals { margin-top: var(--space-6); padding: var(--space-4); }
+.approvals-header { display:flex; justify-content: space-between; align-items:center; margin-bottom: var(--space-3); }
+/* END: OCC Styles */
